@@ -1,0 +1,46 @@
+services:
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${API_SECRET}
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  mongodb:
+    image: mongo
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${API_NAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${API_SECRET}
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+  
+  smtp:
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo '{"localhost": {"name": "localhost", "host": "${MAILER_SERVER}", "port": "${MAILER_PORT}", "email": "${MAILER_FROM}", "username": "${MAILER_USERNAME}", "password": "${MAILER_PASSWORD}", "mechanism": "PLAIN"}}' > /mailer.json &&
+        MailHog -smtp-bind-addr ${MAILER_SERVER}:${MAILER_PORT} -ui-bind-addr ${MAILER_SERVER}:8025 -api-bind-addr ${MAILER_SERVER}:8025 -storage maildir -maildir-path /maildir -outgoing-smtp /mailer.json
+    volumes:
+      - mailhog_data:/maildir
+
+volumes:
+  redis_data:
+  mongodb_data:
+  mailhog_data:
+
+# sudo docker-compose -f docker-compose.yml --env-file env/.env up -d
